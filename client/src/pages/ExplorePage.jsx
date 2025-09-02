@@ -75,7 +75,6 @@ export default function ExplorePage() {
 
         try {
             // Ensure selectedDestination is always an array of objects with id, lat, lng
-            console.log(selectedDestination)
             const destinationsPayload = (Array.isArray(selectedDestination) ? selectedDestination : [selectedDestination])
                 .map(dest => {
                     const spot = touristSpots.find(s => s.id === dest.id || s.id === dest);
