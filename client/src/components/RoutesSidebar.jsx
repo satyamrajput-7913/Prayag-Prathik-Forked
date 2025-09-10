@@ -5,22 +5,33 @@ import {
     IconButton,
 } from "@mui/material";
 import { MapPin, Clock, Navigation, Calendar, ChevronLeft, ChevronRight } from "lucide-react";
+import { useEffect, useRef } from "react";
 
-export default function RoutesSidebar({ routes, isOpen, setIsOpen }) {
+export default function RoutesSidebar({ routes, isOpen, setIsOpen, activeStep }) {
     if (!routes?.length) return null;
 
     const route = routes[0];
     const { startStop, plan, totalCost, days } = route;
 
+    const stepRefs = useRef([]);
+
+    useEffect(() => {
+        if (activeStep != null && stepRefs.current[activeStep]) {
+            stepRefs.current[activeStep].scrollIntoView({
+                behavior: 'smooth',
+                block: 'start'
+            });
+        }
+    }, [activeStep]);
+
     return (
         <>
-            {/* Floating toggle button */}
             <IconButton
                 onClick={() => setIsOpen(!isOpen)}
                 sx={{
                     position: "fixed",
                     bottom: 24,
-                    right: isOpen ? 440 : 24, // when open, sit beside sidebar
+                    right: isOpen ? 440 : 24,
                     zIndex: 1301,
                     background: "white",
                     border: "1px solid #ddd",
@@ -31,7 +42,6 @@ export default function RoutesSidebar({ routes, isOpen, setIsOpen }) {
                 {isOpen ? <ChevronRight /> : <ChevronLeft />}
             </IconButton>
 
-            {/* Sidebar */}
             <Drawer
                 anchor="right"
                 open={isOpen}
@@ -47,7 +57,6 @@ export default function RoutesSidebar({ routes, isOpen, setIsOpen }) {
                     },
                 }}
             >
-                {/* Header */}
                 <div className="px-6 py-5 border-b border-emerald-200 bg-gradient-to-r from-emerald-600 to-teal-500 shadow-sm">
                     <h1 className="text-xl font-bold text-white tracking-wide">
                         Route Overview
@@ -57,9 +66,7 @@ export default function RoutesSidebar({ routes, isOpen, setIsOpen }) {
                     </p>
                 </div>
 
-                {/* Content */}
                 <div className="flex-1 overflow-y-auto px-5 py-4 space-y-6 text-sm text-neutral-800">
-                    {/* Starting Point */}
                     {startStop && (
                         <div className="p-4 rounded-xl border bg-white shadow-sm">
                             <div className="flex items-center gap-2 mb-2">
@@ -75,7 +82,6 @@ export default function RoutesSidebar({ routes, isOpen, setIsOpen }) {
                         </div>
                     )}
 
-                    {/* Summary */}
                     <div className="flex justify-between">
                         <Chip
                             icon={<Calendar size={14} />}
@@ -84,7 +90,7 @@ export default function RoutesSidebar({ routes, isOpen, setIsOpen }) {
                                 borderRadius: "9999px",
                                 fontSize: "0.8rem",
                                 fontWeight: 500,
-                                paddingLeft : 1
+                                paddingLeft: 1
                             }}
                             color="primary"
                             variant="outlined"
@@ -103,18 +109,17 @@ export default function RoutesSidebar({ routes, isOpen, setIsOpen }) {
 
                     <Divider />
 
-                    {/* Plan Steps */}
                     {plan && plan.length > 0 ? (
                         <div className="space-y-4">
                             {plan.map((step, idx) => (
                                 <div
                                     key={idx}
-                                    className="p-4 rounded-xl border bg-white shadow-sm space-y-3"
+                                    ref={el => stepRefs.current[idx] = el}
+                                    className={`p-4 rounded-xl border bg-white shadow-sm space-y-3 transition-all ${activeStep === idx ? "border-red-500 bg-red-50" : "border-gray-200"}`}
                                 >
-                                    {/* Travel Info */}
                                     <div>
                                         <div className="flex items-center gap-2 mb-1">
-                                            <MapPin className="w-4 h-4 text-emerald-600" />
+                                            <MapPin className={`w-4 h-4 ${activeStep === idx ? "text-red-600" : "text-emerald-600"}`} />
                                             <span className="font-semibold text-neutral-700 text-sm">
                                                 Travel
                                             </span>
@@ -137,10 +142,9 @@ export default function RoutesSidebar({ routes, isOpen, setIsOpen }) {
 
                                     <Divider />
 
-                                    {/* Visit Info */}
                                     <div>
                                         <div className="flex items-center gap-2 mb-1">
-                                            <Clock className="w-4 h-4 text-emerald-600" />
+                                            <Clock className={`w-4 h-4 ${activeStep === idx ? "text-red-600" : "text-emerald-600"}`} />
                                             <span className="font-semibold text-neutral-700 text-sm">
                                                 Visit
                                             </span>
@@ -150,18 +154,14 @@ export default function RoutesSidebar({ routes, isOpen, setIsOpen }) {
                                         </p>
                                         <p className="text-xs text-neutral-500">
                                             Arrival:{" "}
-                                            {new Date(
-                                                step.visit.arrival
-                                            ).toLocaleTimeString([], {
+                                            {new Date(step.visit.arrival).toLocaleTimeString([], {
                                                 hour: "2-digit",
                                                 minute: "2-digit",
                                             })}
                                         </p>
                                         <p className="text-xs text-neutral-500">
                                             Leave:{" "}
-                                            {new Date(
-                                                step.visit.leave
-                                            ).toLocaleTimeString([], {
+                                            {new Date(step.visit.leave).toLocaleTimeString([], {
                                                 hour: "2-digit",
                                                 minute: "2-digit",
                                             })}
