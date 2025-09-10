@@ -153,8 +153,9 @@ export default function ExplorePage() {
                     userLocation={userLocation}
                     destinations={selectedDestination}
                     activeStep={activeStep}
+                    setActiveStep={setActiveStep}
                     zoomLevel={zoomLevel}
-                    // routes={routes}
+                    routes={routes}
                 />
             </main>
 
