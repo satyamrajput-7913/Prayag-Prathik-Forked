@@ -24,7 +24,7 @@ export default function DestinationSidebar({
   selectedStart,
   setSelectedStart,
   handleFindPath,
-  handleUseCurrentLocation, // ✅ Added prop
+  handleUseCurrentLocation,
   userLocation,
   pathLoading,
 }) {
@@ -244,8 +244,10 @@ export default function DestinationSidebar({
                     },
                   }}
                 >
-                  <Crosshair className="w-4 h-4 text-emerald-600" />
-                  Use Current Location
+                  <div className="flex gap-2">
+                    <Crosshair className="w-4 h-4 text-emerald-600" />
+                    <span className="">Use Current Location</span>
+                  </div>
                 </MenuItem>
 
                 <ListSubheader
