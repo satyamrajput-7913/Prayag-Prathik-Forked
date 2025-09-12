@@ -15,6 +15,9 @@ import {
 } from "@mui/material";
 import MenuIcon from "@mui/icons-material/MenuOpen";
 import CloseIcon from "@mui/icons-material/Close";
+import { useNavigate, useParams } from "react-router-dom";
+import { useDispatch, useSelector } from "react-redux";
+import { setLanguage } from "../store/languageSlice/languageSlice";
 
 export default function ExplorePage() {
   const [userLocation, setUserLocation] = useState(null);
@@ -29,14 +32,80 @@ export default function ExplorePage() {
   const [allSpots, setAllSpots] = useState([]);
   const [zoomLevel, setZoomLevel] = useState(13);
 
-  // ✅ Spinner state for current location fetching
-  const [isFetchingLocation, setIsFetchingLocation] = useState(false);
+  const language = useSelector((state) => state.language.selectedLanguage);
+  const dispatch = useDispatch();
 
-  // ✅ State for showing modal
+  // Spinner states
+  const [isFetchingLocation, setIsFetchingLocation] = useState(false);
+  const [isFetchingPath, setIsFetchingPath] = useState(false);
+  const [isTranslating, setIsTranslating] = useState(false);
+
+  // Modal
   const [dialogOpen, setDialogOpen] = useState(false);
   const [dialogMessage, setDialogMessage] = useState("");
 
-  // ✅ Effect to clear routes when start or destination changes
+  const [texts, setTexts] = useState({
+    useCurrent: "Use Current Location",
+    findPath: "Find Path",
+    locationInfo: "Location Info",
+    closeSidebar: "Close Destinations Sidebar",
+    openSidebar: "Open Destinations Sidebar",
+  });
+
+  const navigate = useNavigate();
+
+  const translateText = async (text, targetLang) => {
+    try {
+      const res = await axios.get("https://api.mymemory.translated.net/get", {
+        params: { q: text, langpair: `en|${targetLang}` },
+      });
+      return res.data.responseData.translatedText;
+    } catch (err) {
+      console.error("Translation error:", err);
+      return text;
+    }
+  };
+
+  useEffect(() => {
+    const doTranslation = async () => {
+      if (language === "en") {
+        setTexts({
+          useCurrent: "Current Location",
+          findPath: "Find Path",
+          locationInfo: "Location Info",
+          closeSidebar: "Close Destinations Sidebar",
+          openSidebar: "Open Destinations Sidebar",
+        });
+      } else {
+        setIsTranslating(true);
+        const useCurrent = await translateText(
+          "Use Current Location",
+          language
+        );
+        const findPath = await translateText("Find Path", language);
+        const locationInfo = await translateText("Location Info", language);
+        const closeSidebar = await translateText(
+          "Close Destinations Sidebar",
+          language
+        );
+        const openSidebar = await translateText(
+          "Open Destinations Sidebar",
+          language
+        );
+        setTexts({
+          useCurrent,
+          findPath,
+          locationInfo,
+          closeSidebar,
+          openSidebar,
+        });
+        setIsTranslating(false);
+      }
+    };
+    doTranslation();
+  }, [language]);
+
+  // Clear routes when start/destination changes
   useEffect(() => {
     setRoutes([]);
   }, [selectedStart, selectedDestination]);
@@ -83,11 +152,8 @@ export default function ExplorePage() {
   useEffect(() => {
     if (selectedStart) {
       const spot = allSpots.find((s) => s.id === selectedStart);
-      if (spot) {
-        setUserLocation({ lat: spot.lat, lng: spot.lng });
-      } else {
-        setUserLocation(null);
-      }
+      if (spot) setUserLocation({ lat: spot.lat, lng: spot.lng });
+      else setUserLocation(null);
     }
   }, [selectedStart, allSpots]);
 
@@ -95,6 +161,7 @@ export default function ExplorePage() {
     if (!userLocation || !selectedDestination) return;
     setPathLoading(true);
     setIsPathSidebarOpen(true);
+    setIsFetchingPath(true);
 
     try {
       const destinationsPayload = (
@@ -127,11 +194,8 @@ export default function ExplorePage() {
           totalCost: pathData.totalCost,
           days: pathData.days,
         };
-
         setRoutes([transformedRoute]);
-      } else {
-        setRoutes([]);
-      }
+      } else setRoutes([]);
 
       setActiveStep(null);
     } catch (err) {
@@ -139,64 +203,68 @@ export default function ExplorePage() {
       setRoutes([]);
     } finally {
       setPathLoading(false);
+      setIsFetchingPath(false);
     }
   };
 
   const handleUseCurrentLocation = () => {
     if (navigator.geolocation) {
-      setIsFetchingLocation(true); // ✅ Start spinner
+      setIsFetchingLocation(true);
       navigator.geolocation.getCurrentPosition(
         (position) => {
           const { latitude, longitude } = position.coords;
           setUserLocation({ lat: latitude, lng: longitude });
-          setSelectedStart("current-location"); // special ID for current location
-          setDialogMessage("Current location set!");
+          setSelectedStart("current-location");
+          setDialogMessage(texts.useCurrent + " set!");
           setDialogOpen(true);
-
-          setIsFetchingLocation(false); // ✅ Stop spinner
-
-          setTimeout(() => {
-            setDialogOpen(false);
-          }, 1000);
+          setIsFetchingLocation(false);
+          setTimeout(() => setDialogOpen(false), 1000);
         },
         (error) => {
           console.error("Geolocation error:", error);
           setDialogMessage("Unable to fetch location.");
           setDialogOpen(true);
-
-          setIsFetchingLocation(false); // ✅ Stop spinner
-
-          setTimeout(() => {
-            setDialogOpen(false);
-          }, 1000);
+          setIsFetchingLocation(false);
+          setTimeout(() => setDialogOpen(false), 1000);
         }
       );
     } else {
       setDialogMessage("Geolocation is not supported.");
       setDialogOpen(true);
-
-      setTimeout(() => {
-        setDialogOpen(false);
-      }, 1000);
+      setTimeout(() => setDialogOpen(false), 1000);
     }
   };
 
   return (
     <div className="flex min-h-screen bg-gradient-to-br from-indigo-50 via-white to-amber-50 font-sans relative">
+      {/* Language Dropdown */}
+      <div className="absolute top-4 right-4 z-[1000]">
+        <select
+          value={language}
+          onChange={(e) => dispatch(setLanguage(e.target.value))}
+          className="border border-gray-300 rounded px-2 py-1 text-sm bg-white"
+        >
+          <option value="en">English</option>
+          <option value="hi">Hindi</option>
+          <option value="bn">Bengali</option>
+          <option value="te">Telugu</option>
+          <option value="mr">Marathi</option>
+          <option value="ta">Tamil</option>
+          <option value="ur">Urdu</option>
+          <option value="gu">Gujarati</option>
+          <option value="kn">Kannada</option>
+          <option value="or">Odia</option>
+          <option value="pa">Punjabi</option>
+          <option value="ml">Malayalam</option>
+        </select>
+      </div>
+
       {/* Destination Sidebar */}
       <DestinationSidebar
         isSidebarOpen={isSidebarOpen}
         setIsSidebarOpen={setIsSidebarOpen}
         predefinedDestinations={touristSpots}
-        predefinedStarts={[
-          {
-            id: "current-location",
-            name: "Current Location",
-            lat: userLocation?.lat,
-            lng: userLocation?.lng,
-          },
-          ...allSpots,
-        ]}
+        predefinedStarts={allSpots}
         selectedDestination={selectedDestination}
         setSelectedDestination={setSelectedDestination}
         selectedStart={selectedStart}
@@ -209,23 +277,14 @@ export default function ExplorePage() {
 
       {/* Sidebar Toggle Button */}
       <div className={`absolute bottom-4 z-[1000] transition-all duration-300`}>
-        <Tooltip
-          title={
-            isSidebarOpen
-              ? "Close Destinations Sidebar"
-              : "Open Destinations Sidebar"
-          }
-        >
+        <Tooltip title={isSidebarOpen ? texts.closeSidebar : texts.openSidebar}>
           <button
             onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-            className={`bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg rounded-full w-12 h-12 flex items-center justify-center transition-all duration-300
-                            absolute bottom-0
-                            ${
-                              isSidebarOpen
-                                ? "left-[23rem] -translate-x-6"
-                                : "left-0 translate-x-6"
-                            }
-                        `}
+            className={`bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg rounded-full w-12 h-12 flex items-center justify-center transition-all duration-300 absolute bottom-0 ${
+              isSidebarOpen
+                ? "left-[23rem] -translate-x-6"
+                : "left-0 translate-x-6"
+            }`}
           >
             {isSidebarOpen ? <CloseIcon /> : <MenuIcon />}
           </button>
@@ -253,7 +312,7 @@ export default function ExplorePage() {
         setActiveStep={setActiveStep}
       />
 
-      {/* Styled Modal at the Bottom */}
+      {/* Modal */}
       <Dialog
         open={dialogOpen}
         onClose={() => setDialogOpen(false)}
@@ -281,22 +340,26 @@ export default function ExplorePage() {
         }}
       >
         <DialogTitle sx={{ fontSize: "1.1rem", color: "#065f46", p: 0 }}>
-          Location Info
+          {texts.locationInfo}
         </DialogTitle>
         <DialogContent sx={{ fontSize: "0.95rem", color: "#374151", p: 0 }}>
           {dialogMessage}
         </DialogContent>
       </Dialog>
 
-      {/* ✅ Spinner with text when fetching current location */}
+      {/* Spinner */}
       <Backdrop
-        open={isFetchingLocation}
+        open={isFetchingLocation || isFetchingPath || isTranslating}
         sx={{ color: "#fff", zIndex: 1200, flexDirection: "column" }}
       >
         <CircularProgress color="inherit" />
         <Box mt={2}>
           <Typography variant="h6" sx={{ color: "#fff" }}>
-            Fetching current location...
+            {isFetchingLocation
+              ? "Fetching current location..."
+              : isFetchingPath
+              ? "Fetching current path..."
+              : "Translating content..."}
           </Typography>
         </Box>
       </Backdrop>
