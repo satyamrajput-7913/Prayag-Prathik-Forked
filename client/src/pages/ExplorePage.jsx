@@ -15,7 +15,7 @@ import {
 } from "@mui/material";
 import MenuIcon from "@mui/icons-material/MenuOpen";
 import CloseIcon from "@mui/icons-material/Close";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import { setLanguage } from "../store/languageSlice/languageSlice";
 
@@ -148,7 +148,7 @@ export default function ExplorePage() {
     fetchTouristSpots();
     fetchAllSpots();
   }, []);
-
+  
   useEffect(() => {
     if (selectedStart) {
       const spot = allSpots.find((s) => s.id === selectedStart);
@@ -273,6 +273,7 @@ export default function ExplorePage() {
         handleUseCurrentLocation={handleUseCurrentLocation}
         userLocation={userLocation}
         pathLoading={pathLoading}
+        setIsTranslating={setIsTranslating}
       />
 
       {/* Sidebar Toggle Button */}
@@ -280,11 +281,10 @@ export default function ExplorePage() {
         <Tooltip title={isSidebarOpen ? texts.closeSidebar : texts.openSidebar}>
           <button
             onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-            className={`bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg rounded-full w-12 h-12 flex items-center justify-center transition-all duration-300 absolute bottom-0 ${
-              isSidebarOpen
-                ? "left-[23rem] -translate-x-6"
-                : "left-0 translate-x-6"
-            }`}
+            className={`bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg rounded-full w-12 h-12 flex items-center justify-center transition-all duration-300 absolute bottom-0 ${isSidebarOpen
+              ? "left-[23rem] -translate-x-6"
+              : "left-0 translate-x-6"
+              }`}
           >
             {isSidebarOpen ? <CloseIcon /> : <MenuIcon />}
           </button>
@@ -310,6 +310,7 @@ export default function ExplorePage() {
         routes={routes}
         activeStep={activeStep}
         setActiveStep={setActiveStep}
+        setIsTranslating={setIsTranslating}
       />
 
       {/* Modal */}
@@ -358,8 +359,8 @@ export default function ExplorePage() {
             {isFetchingLocation
               ? "Fetching current location..."
               : isFetchingPath
-              ? "Fetching current path..."
-              : "Translating content..."}
+                ? "Fetching current path..."
+                : "Translating content..."}
           </Typography>
         </Box>
       </Backdrop>
