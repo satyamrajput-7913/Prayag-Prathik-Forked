@@ -34,7 +34,6 @@ export default function DestinationSidebar({
   const [searchQuery, setSearchQuery] = useState("");
   const [isDestinationsOpen, setIsDestinationsOpen] = useState(true);
   const [isStartOpen, setIsStartOpen] = useState(true);
-
   const [translatedDestinations, setTranslatedDestinations] = useState([]);
   const [translatedStarts, setTranslatedStarts] = useState([]);
 
@@ -204,7 +203,6 @@ export default function DestinationSidebar({
     doTranslation();
   }, [language]);
 
-
   return (
     <aside
       className={`fixed z-40 top-0 left-0 h-full w-80
@@ -323,7 +321,6 @@ export default function DestinationSidebar({
             </div>
           </div>
         </div>
-
         {/* Starting Point Section */}
         <div>
           <div
@@ -339,7 +336,6 @@ export default function DestinationSidebar({
               <ChevronRight className="w-4 h-4 text-neutral-500" />
             )}
           </div>
-
           <div
             className={`transition-all duration-300 ease-in-out overflow-hidden
             ${isStartOpen ? "max-h-60 opacity-100" : "max-h-0 opacity-0"}`}
@@ -462,7 +458,6 @@ export default function DestinationSidebar({
           {pathLoading ? `${texts.findingPath}` : `🌿 ${texts.findPath}`}
         </button>
       </div>
-
     </aside>
   );
 }

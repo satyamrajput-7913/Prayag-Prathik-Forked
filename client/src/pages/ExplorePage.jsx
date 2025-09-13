@@ -148,7 +148,7 @@ export default function ExplorePage() {
     fetchTouristSpots();
     fetchAllSpots();
   }, []);
-
+  
   useEffect(() => {
     if (selectedStart) {
       const spot = allSpots.find((s) => s.id === selectedStart);
@@ -364,7 +364,6 @@ export default function ExplorePage() {
           </Typography>
         </Box>
       </Backdrop>
-
     </div>
   );
 }
