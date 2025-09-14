@@ -3,6 +3,7 @@ import MapView from "../components/MapView";
 import DestinationSidebar from "../components/DestinationSidebar";
 import RoutesSidebar from "../components/RoutesSidebar";
 import axios from "axios";
+import { startTranslating, stopTranslating } from "../store/translationSlice/translationSlice"
 import {
   Tooltip,
   Dialog,
@@ -31,16 +32,14 @@ export default function ExplorePage() {
   const [touristSpots, setTouristSpots] = useState([]);
   const [allSpots, setAllSpots] = useState([]);
   const [zoomLevel, setZoomLevel] = useState(13);
-
-  const language = useSelector((state) => state.language.selectedLanguage);
-  const dispatch = useDispatch();
-
-  // Spinner states
   const [isFetchingLocation, setIsFetchingLocation] = useState(false);
   const [isFetchingPath, setIsFetchingPath] = useState(false);
-  const [isTranslating, setIsTranslating] = useState(false);
 
-  // Modal
+  const dispatch = useDispatch();
+  const language = useSelector((state) => state.language.selectedLanguage);
+  const translatingCount = useSelector((state) => state.translation.translatingCount);
+  const isTranslating = translatingCount > 0;
+
   const [dialogOpen, setDialogOpen] = useState(false);
   const [dialogMessage, setDialogMessage] = useState("");
 
@@ -50,62 +49,92 @@ export default function ExplorePage() {
     locationInfo: "Location Info",
     closeSidebar: "Close Destinations Sidebar",
     openSidebar: "Open Destinations Sidebar",
+    currentLocationSet: "Current Location Set",
+    fetchingLocation: "Fetching current location...",
+    fetchingPath: "Fetching current path...",
+    translatingContent: "Translating content..."
   });
 
-  const navigate = useNavigate();
 
   const translateText = async (text, targetLang) => {
     try {
-      const res = await axios.get("https://api.mymemory.translated.net/get", {
-        params: { q: text, langpair: `en|${targetLang}` },
+      const res = await axios.get('http://localhost:5001/api/translate', {
+        params: {
+          q: text,
+          targetLang: targetLang
+        }
       });
-      return res.data.responseData.translatedText;
-    } catch (err) {
-      console.error("Translation error:", err);
+
+      return res.data.translatedText;
+    } catch (error) {
+      console.error("Translation error:", error);
       return text;
     }
   };
 
   useEffect(() => {
+    if (!touristSpots.length || !allSpots.length) return;
+
     const doTranslation = async () => {
       if (language === "en") {
+        return;
+      }
+
+      dispatch(startTranslating());
+
+      try {
+        const translatedTexts = await Promise.all([
+          translateText("Use Current Location", language),
+          translateText("Find Path", language),
+          translateText("Location Info", language),
+          translateText("Close Destinations Sidebar", language),
+          translateText("Open Destinations Sidebar", language),
+          translateText("Current Location Set", language),
+          translateText("Fetching current location...", language),
+          translateText("Fetching current path...", language),
+          translateText("Translating content...", language),
+        ]);
+
         setTexts({
-          useCurrent: "Current Location",
-          findPath: "Find Path",
-          locationInfo: "Location Info",
-          closeSidebar: "Close Destinations Sidebar",
-          openSidebar: "Open Destinations Sidebar",
+          useCurrent: translatedTexts[0],
+          findPath: translatedTexts[1],
+          locationInfo: translatedTexts[2],
+          closeSidebar: translatedTexts[3],
+          openSidebar: translatedTexts[4],
+          currentLocationSet: translatedTexts[5],
+          fetchingLocation: translatedTexts[6],
+          fetchingPath: translatedTexts[7],
+          translatingContent: translatedTexts[8],
         });
-      } else {
-        setIsTranslating(true);
-        const useCurrent = await translateText(
-          "Use Current Location",
-          language
+
+        const translatedTouristSpots = await Promise.all(
+          touristSpots.map(async (s) => ({
+            ...s,
+            translatedName: await translateText(s.name, language),
+          }))
         );
-        const findPath = await translateText("Find Path", language);
-        const locationInfo = await translateText("Location Info", language);
-        const closeSidebar = await translateText(
-          "Close Destinations Sidebar",
-          language
+        setTouristSpots(translatedTouristSpots);
+
+        const translatedAllSpots = await Promise.all(
+          allSpots.map(async (s) => ({
+            ...s,
+            translatedName: await translateText(s.name, language),
+          }))
         );
-        const openSidebar = await translateText(
-          "Open Destinations Sidebar",
-          language
-        );
-        setTexts({
-          useCurrent,
-          findPath,
-          locationInfo,
-          closeSidebar,
-          openSidebar,
-        });
-        setIsTranslating(false);
+        setAllSpots(translatedAllSpots);
+
+      } catch (err) {
+        console.error("Translation failed", err);
+      } finally {
+        dispatch(stopTranslating());
       }
     };
-    doTranslation();
-  }, [language]);
 
-  // Clear routes when start/destination changes
+    doTranslation();
+  }, [language, touristSpots.length, allSpots.length]);
+
+
+
   useEffect(() => {
     setRoutes([]);
   }, [selectedStart, selectedDestination]);
@@ -147,8 +176,9 @@ export default function ExplorePage() {
 
     fetchTouristSpots();
     fetchAllSpots();
+    // doTranslation();
   }, []);
-  
+
   useEffect(() => {
     if (selectedStart) {
       const spot = allSpots.find((s) => s.id === selectedStart);
@@ -215,7 +245,7 @@ export default function ExplorePage() {
           const { latitude, longitude } = position.coords;
           setUserLocation({ lat: latitude, lng: longitude });
           setSelectedStart("current-location");
-          setDialogMessage(texts.useCurrent + " set!");
+          setDialogMessage(texts.currentLocationSet);
           setDialogOpen(true);
           setIsFetchingLocation(false);
           setTimeout(() => setDialogOpen(false), 1000);
@@ -237,7 +267,6 @@ export default function ExplorePage() {
 
   return (
     <div className="flex min-h-screen bg-gradient-to-br from-indigo-50 via-white to-amber-50 font-sans relative">
-      {/* Language Dropdown */}
       <div className="absolute top-4 right-4 z-[1000]">
         <select
           value={language}
@@ -259,10 +288,8 @@ export default function ExplorePage() {
         </select>
       </div>
 
-      {/* Destination Sidebar */}
       <DestinationSidebar
         isSidebarOpen={isSidebarOpen}
-        setIsSidebarOpen={setIsSidebarOpen}
         predefinedDestinations={touristSpots}
         predefinedStarts={allSpots}
         selectedDestination={selectedDestination}
@@ -273,10 +300,8 @@ export default function ExplorePage() {
         handleUseCurrentLocation={handleUseCurrentLocation}
         userLocation={userLocation}
         pathLoading={pathLoading}
-        setIsTranslating={setIsTranslating}
       />
 
-      {/* Sidebar Toggle Button */}
       <div className={`absolute bottom-4 z-[1000] transition-all duration-300`}>
         <Tooltip title={isSidebarOpen ? texts.closeSidebar : texts.openSidebar}>
           <button
@@ -291,7 +316,6 @@ export default function ExplorePage() {
         </Tooltip>
       </div>
 
-      {/* Map */}
       <main className="flex-1 relative transition-all duration-500 z-0">
         <MapView
           userLocation={userLocation}
@@ -303,17 +327,14 @@ export default function ExplorePage() {
         />
       </main>
 
-      {/* Routes Sidebar */}
       <RoutesSidebar
         isOpen={isPathSidebarOpen}
         setIsOpen={setIsPathSidebarOpen}
         routes={routes}
         activeStep={activeStep}
         setActiveStep={setActiveStep}
-        setIsTranslating={setIsTranslating}
       />
 
-      {/* Modal */}
       <Dialog
         open={dialogOpen}
         onClose={() => setDialogOpen(false)}
@@ -348,22 +369,22 @@ export default function ExplorePage() {
         </DialogContent>
       </Dialog>
 
-      {/* Spinner */}
       <Backdrop
         open={isFetchingLocation || isFetchingPath || isTranslating}
-        sx={{ color: "#fff", zIndex: 1200, flexDirection: "column" }}
+        sx={{ color: "#fff", zIndex: 1200, flexDirection: "column", backdropFilter: "blur(5px)" }}
       >
         <CircularProgress color="inherit" />
         <Box mt={2}>
           <Typography variant="h6" sx={{ color: "#fff" }}>
             {isFetchingLocation
-              ? "Fetching current location..."
+              ? texts.fetchingLocation
               : isFetchingPath
-                ? "Fetching current path..."
-                : "Translating content..."}
+                ? texts.fetchingPath
+                : texts.translatingContent}
           </Typography>
         </Box>
       </Backdrop>
+
     </div>
   );
 }
