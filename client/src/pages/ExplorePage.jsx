@@ -34,6 +34,8 @@ export default function ExplorePage() {
   const [zoomLevel, setZoomLevel] = useState(13);
   const [isFetchingLocation, setIsFetchingLocation] = useState(false);
   const [isFetchingPath, setIsFetchingPath] = useState(false);
+  const [originalTouristSpots, setOriginalTouristSpots] = useState([]);
+  const [originalAllSpots, setOriginalAllSpots] = useState([]);
 
   const dispatch = useDispatch();
   const language = useSelector((state) => state.language.selectedLanguage);
@@ -77,6 +79,8 @@ export default function ExplorePage() {
 
     const doTranslation = async () => {
       if (language === "en") {
+        setTouristSpots(originalTouristSpots);
+        setAllSpots(originalAllSpots);
         return;
       }
 
@@ -152,6 +156,7 @@ export default function ExplorePage() {
           lng: s.location.coordinates[0],
         }));
         setTouristSpots(spots);
+        setOriginalTouristSpots(spots);
       } catch (err) {
         console.error("Error fetching tourist spots:", err);
       }
@@ -169,6 +174,7 @@ export default function ExplorePage() {
           lng: s.location.coordinates[0],
         }));
         setAllSpots(spots);
+        setOriginalAllSpots(spots);
       } catch (err) {
         console.error("Error fetching all spots:", err);
       }
@@ -176,7 +182,6 @@ export default function ExplorePage() {
 
     fetchTouristSpots();
     fetchAllSpots();
-    // doTranslation();
   }, []);
 
   useEffect(() => {
