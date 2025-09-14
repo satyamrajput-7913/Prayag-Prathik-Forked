@@ -33,13 +33,13 @@ export default function HomePage() {
 
   const translateText = async (text, targetLang) => {
     try {
-      const res = await axios.get("https://api.mymemory.translated.net/get", {
+      const res = await axios.get('http://localhost:5001/api/translate', {
         params: {
           q: text,
-          langpair: `en|${targetLang}`,
-        },
+          targetLang: targetLang
+        }
       });
-      return res.data.responseData.translatedText;
+      return res.data.translatedText;
     } catch (error) {
       console.error("Translation error:", error);
       return text;
@@ -114,7 +114,6 @@ export default function HomePage() {
 
   return (
     <div className="relative min-h-screen flex items-center justify-center overflow-hidden bg-gray-50 text-gray-800">
-      {/* Language Dropdown */}
       <div className="absolute top-4 right-4 z-20">
         <select
           value={language}
@@ -136,20 +135,17 @@ export default function HomePage() {
         </select>
       </div>
 
-      {/* Background Images */}
       {images.map((image, index) => (
         <div
           key={index}
-          className={`absolute inset-0 bg-cover bg-center transition-opacity duration-1000 ease-in-out ${
-            index === currentIndex ? "opacity-100" : "opacity-0"
-          }`}
+          className={`absolute inset-0 bg-cover bg-center transition-opacity duration-1000 ease-in-out ${index === currentIndex ? "opacity-100" : "opacity-0"
+            }`}
           style={{ backgroundImage: `url('${image}')` }}
         />
       ))}
 
       <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-black/30 to-black/60"></div>
 
-      {/* Content */}
       <div className="relative z-20 text-center px-4 max-w-md bg-white/95 backdrop-blur-sm rounded-xl shadow-md p-6 space-y-4 border border-emerald-200">
         <h1 className="text-2xl font-semibold text-emerald-700">
           {texts.heading}
@@ -167,18 +163,16 @@ export default function HomePage() {
             <button
               key={index}
               onClick={() => setCurrentIndex(index)}
-              className={`w-3 h-3 rounded-full transition-all duration-300 ${
-                index === currentIndex
-                  ? "bg-emerald-600 scale-110"
-                  : "bg-gray-400/50"
-              }`}
+              className={`w-3 h-3 rounded-full transition-all duration-300 ${index === currentIndex
+                ? "bg-emerald-600 scale-110"
+                : "bg-gray-400/50"
+                }`}
               aria-label={`Go to slide ${index + 1}`}
             />
           ))}
         </div>
       </div>
 
-      {/* Navigation Buttons */}
       <button
         onClick={goToPrev}
         className="absolute left-4 z-20 p-2 rounded-full bg-black/20 hover:bg-black/40 text-white transition-all duration-300 hidden md:block"
@@ -220,15 +214,13 @@ export default function HomePage() {
         </svg>
       </button>
 
-      {/* Footer */}
       <div className="absolute bottom-4 left-0 right-0 text-center text-gray-500 text-xs z-20">
         {texts.footer}
       </div>
 
-      {/* Translation Spinner */}
       <Backdrop
         open={isTranslating}
-        sx={{ color: "#fff", zIndex: 1200, flexDirection: "column" }}
+        sx={{ color: "#fff", zIndex: 1200, flexDirection: "column", backdropFilter: "blur(5px)" }}
       >
         <CircularProgress color="inherit" />
         <Box mt={2}>

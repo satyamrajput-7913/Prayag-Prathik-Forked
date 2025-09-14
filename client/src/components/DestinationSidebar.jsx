@@ -13,12 +13,12 @@ import {
   InputLabel,
   ListSubheader,
 } from "@mui/material";
-import { useSelector } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import axios from "axios";
+import { startTranslating, stopTranslating } from "../store/translationSlice/translationSlice"
 
 export default function DestinationSidebar({
   isSidebarOpen,
-  setIsSidebarOpen,
   predefinedDestinations,
   predefinedStarts,
   selectedDestination,
@@ -29,15 +29,16 @@ export default function DestinationSidebar({
   handleUseCurrentLocation,
   userLocation,
   pathLoading,
-  setIsTranslating,
 }) {
   const [searchQuery, setSearchQuery] = useState("");
   const [isDestinationsOpen, setIsDestinationsOpen] = useState(true);
   const [isStartOpen, setIsStartOpen] = useState(true);
-  const [translatedDestinations, setTranslatedDestinations] = useState([]);
-  const [translatedStarts, setTranslatedStarts] = useState([]);
+  const [texts, setTexts] = useState({});
 
-  const filteredDestinations = (translatedDestinations.length > 0 ? translatedDestinations : predefinedDestinations)
+  const dispatch = useDispatch();
+  const language = useSelector((state) => state.language.selectedLanguage);
+
+  const filteredDestinations = predefinedDestinations
     .filter((dest) =>
       (dest.translatedName || dest.name).toLowerCase().includes(searchQuery.toLowerCase())
     )
@@ -45,47 +46,32 @@ export default function DestinationSidebar({
       (a.translatedName || a.name).localeCompare(b.translatedName || b.name)
     );
 
-
-  const sortedStarts = (translatedStarts.length > 0 ? translatedStarts : predefinedStarts)
+  const sortedStarts = predefinedStarts
     .sort((a, b) =>
       (a.translatedName || a.name).localeCompare(b.translatedName || b.name)
     );
 
 
-  const language = useSelector((state) => state.language.selectedLanguage);
-  const [texts, setTexts] = useState({});
-
-  useEffect(() => {
-    setTranslatedDestinations(predefinedDestinations.map(dest => ({
-      ...dest,
-      translatedName: dest.name
-    })));
-    setTranslatedStarts(predefinedStarts.map(start => ({
-      ...start,
-      translatedName: start.name
-    })));
-  }, [predefinedDestinations, predefinedStarts]);
 
   const translateText = async (text, targetLang) => {
-    const cacheKey = `${text}_${targetLang}`;
-    const cached = localStorage.getItem(cacheKey);
-    if (cached) {
-      return cached;
-    }
-
     try {
-      const res = await axios.get("https://api.mymemory.translated.net/get", {
-        params: { q: text, langpair: `en|${targetLang}` },
+      const res = await axios.get("http://localhost:5001/api/translate", {
+        params: {
+          q: text,
+          targetLang: targetLang,
+        },
       });
-      const translated = res.data.responseData.translatedText;
-      localStorage.setItem(cacheKey, translated);
+
+      let translated = res.data.translatedText || text;
+
+      translated = translated.replace(/@\s*action\s*:\s*button/gi, "").trim();
+
       return translated;
-    } catch (err) {
-      console.error("Translation error:", err);
+    } catch (error) {
+      console.error("Translation error:", error);
       return text;
     }
   };
-
 
   useEffect(() => {
     const doTranslation = async () => {
@@ -104,17 +90,8 @@ export default function DestinationSidebar({
           closeSidebar: "Close Destinations Sidebar",
           openSidebar: "Open Destinations Sidebar",
         });
-
-        setTranslatedDestinations(predefinedDestinations.map(dest => ({
-          ...dest,
-          translatedName: dest.name
-        })));
-        setTranslatedStarts(predefinedStarts.map(start => ({
-          ...start,
-          translatedName: start.name
-        })));
       } else {
-        setIsTranslating(true); // Start spinner
+        dispatch(startTranslating());
         try {
           const keys = [
             { key: "explorerTitle", text: "Prayagraj Explorer" },
@@ -132,41 +109,14 @@ export default function DestinationSidebar({
           ];
 
           const translations = await Promise.all(
-            keys.map((item) =>
-              translateText(item.text, language).then((translated) => ({
-                key: item.key,
-                text: translated,
-              }))
-            )
+            keys.map(item => translateText(item.text, language))
           );
 
           const newTexts = {};
-          translations.forEach(({ key, text }) => {
-            newTexts[key] = text;
+          keys.forEach((item, index) => {
+            newTexts[item.key] = translations[index];
           });
-
-          const translatedDest = await Promise.all(
-            predefinedDestinations.map(dest =>
-              translateText(dest.name, language).then(translatedName => ({
-                ...dest,
-                translatedName
-              }))
-            )
-          );
-          setTranslatedDestinations(translatedDest);
-
-          // Translate starts
-          const translatedSts = await Promise.all(
-            predefinedStarts.map(start =>
-              translateText(start.name, language).then(translatedName => ({
-                ...start,
-                translatedName
-              }))
-            )
-          );
-          setTranslatedStarts(translatedSts);
-
-          setTexts(newTexts); // Update texts after all translations are done
+          setTexts(newTexts);
         } catch (error) {
           console.error("Translation failed:", error);
 
@@ -184,24 +134,15 @@ export default function DestinationSidebar({
             closeSidebar: "Close Destinations Sidebar",
             openSidebar: "Open Destinations Sidebar",
           });
-
-          setTranslatedDestinations(predefinedDestinations.map(dest => ({
-            ...dest,
-            translatedName: dest.name
-          })));
-
-          setTranslatedStarts(predefinedStarts.map(start => ({
-            ...start,
-            translatedName: start.name
-          })));
         } finally {
-          setIsTranslating(false); // Stop spinner only after translations are complete
+          dispatch(stopTranslating());
         }
       }
     };
 
     doTranslation();
   }, [language]);
+
 
   return (
     <aside
@@ -211,7 +152,6 @@ export default function DestinationSidebar({
             ${isSidebarOpen ? "translate-x-0" : "-translate-x-full"} 
             flex flex-col`}
     >
-      {/* Header */}
       <div className="px-6 py-5 border-b border-emerald-200 bg-gradient-to-r from-emerald-600 to-teal-500 shadow-sm">
         <h1 className="text-xl font-bold text-white tracking-wide">
           {texts.explorerTitle || "Prayagraj Explorer"}
@@ -221,9 +161,7 @@ export default function DestinationSidebar({
         </p>
       </div>
 
-      {/* Content */}
       <div className="flex-1 overflow-y-auto px-5 py-4 space-y-8 text-sm text-neutral-800">
-        {/* Destination Section */}
         <div className="flex flex-col">
           <div
             className="flex items-center justify-between cursor-pointer select-none mb-3"
@@ -262,7 +200,7 @@ export default function DestinationSidebar({
             <div className="flex-1 overflow-y-auto pr-1 space-y-3 mt-2 h-72">
               {filteredDestinations.length > 0 ? (
                 filteredDestinations.map((dest) => {
-                  const translatedDest = translatedDestinations.find(d => d.id === dest.id) || dest;
+                  const translatedDest = predefinedDestinations.find(d => d.id === dest.id) || dest;
                   return (
                     <div
                       key={dest.id}
@@ -310,7 +248,7 @@ export default function DestinationSidebar({
                         className="w-4 h-4 accent-emerald-600"
                       />
                       <MapPin className="w-4 h-4 text-emerald-600" />
-                      <span className="truncate font-medium">{translatedDest.translatedName}</span>
+                      <span className="truncate font-medium">{translatedDest.translatedName || translatedDest.name}</span>
                     </div>)
                 })
               ) : (
@@ -321,7 +259,7 @@ export default function DestinationSidebar({
             </div>
           </div>
         </div>
-        {/* Starting Point Section */}
+
         <div>
           <div
             className="flex items-center justify-between cursor-pointer select-none mb-3"
@@ -416,7 +354,7 @@ export default function DestinationSidebar({
                   Saved Spots
                 </ListSubheader>
                 {sortedStarts.map((place) => {
-                  const translatedPlace = translatedStarts.find(s => s.id === place.id) || place;
+                  const translatedPlace = predefinedStarts.find(s => s.id === place.id) || place;
                   return (
                     <MenuItem
                       key={place.id}
@@ -435,7 +373,7 @@ export default function DestinationSidebar({
                         },
                       }}
                     >
-                      {translatedPlace.translatedName}
+                      {translatedPlace.translatedName || translatedPlace.name}
                     </MenuItem>)
                 })}
               </Select>
@@ -444,7 +382,6 @@ export default function DestinationSidebar({
         </div>
       </div>
 
-      {/* Bottom Action */}
       <div className="px-5 py-4 border-t border-neutral-200 bg-white">
         <button
           onClick={handleFindPath}

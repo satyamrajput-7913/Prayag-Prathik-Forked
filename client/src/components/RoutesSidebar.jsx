@@ -6,10 +6,11 @@ import {
 } from "@mui/material";
 import { MapPin, Clock, Navigation, Calendar, ChevronLeft, ChevronRight } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import { useSelector } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import axios from "axios";
+import { startTranslating, stopTranslating } from "../store/translationSlice/translationSlice"
 
-export default function RoutesSidebar({ routes, isOpen, setIsOpen, activeStep, setIsTranslating }) {
+export default function RoutesSidebar({ routes, isOpen, setIsOpen, activeStep }) {
     if (!routes?.length) return null;
 
     const route = routes[0];
@@ -17,7 +18,9 @@ export default function RoutesSidebar({ routes, isOpen, setIsOpen, activeStep, s
 
     const stepRefs = useRef([]);
 
+    const dispatch = useDispatch();
     const language = useSelector((state) => state.language.selectedLanguage);
+
     const [texts, setTexts] = useState({
         routeOverview: "Route Overview",
         journeyPlan: "Your optimized journey plan",
@@ -39,22 +42,19 @@ export default function RoutesSidebar({ routes, isOpen, setIsOpen, activeStep, s
         noPlan: "No plan available."
     });
 
-    // Function to translate text
     const translateText = async (text, targetLang) => {
-        const cacheKey = `${text}_${targetLang}`;
-        const cached = localStorage.getItem(cacheKey);
-        if (cached) {
-            return cached;
-        }
         try {
-            const res = await axios.get("https://api.mymemory.translated.net/get", {
-                params: { q: text, langpair: `en|${targetLang}` },
+            const res = await axios.get('http://localhost:5001/api/translate', {
+                params: {
+                    q: text,
+                    targetLang: targetLang
+                }
             });
-            const translated = res.data.responseData.translatedText;
-            localStorage.setItem(cacheKey, translated);
+            let translated = res.data.translatedText || text;
+            translated = translated.replace(/@\s*action\s*:\s*button/gi, "").trim();
             return translated;
-        } catch (err) {
-            console.error("Translation error:", err);
+        } catch (error) {
+            console.error("Translation error:", error);
             return text;
         }
     };
@@ -62,7 +62,6 @@ export default function RoutesSidebar({ routes, isOpen, setIsOpen, activeStep, s
     useEffect(() => {
         const doTranslation = async () => {
             if (language === "en") {
-                // Reset to default English texts
                 setTexts({
                     routeOverview: "Route Overview",
                     journeyPlan: "Your optimized journey plan",
@@ -84,7 +83,7 @@ export default function RoutesSidebar({ routes, isOpen, setIsOpen, activeStep, s
                     noPlan: "No plan available."
                 });
             } else {
-                setIsTranslating(true);
+                dispatch(startTranslating());
                 try {
                     const keys = [
                         { key: "routeOverview", text: "Route Overview" },
@@ -124,9 +123,8 @@ export default function RoutesSidebar({ routes, isOpen, setIsOpen, activeStep, s
                     setTexts(newTexts);
                 } catch (error) {
                     console.error("Translation failed:", error);
-                    // Fallback to English texts
                 } finally {
-                    setIsTranslating(false);
+                    dispatch(stopTranslating());
                 }
             }
         };
